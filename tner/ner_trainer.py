@@ -566,7 +566,8 @@ class GridSearcher:
                 batch_size=self.batch_size_eval,
                 dataset_split=self.eval_config['dataset_split_valid'],
                 cache_file_feature=cache_file_feature,
-                cache_file_prediction=cache_file_prediction
+                cache_file_prediction=cache_file_prediction,
+                unification_by_shared_label=False
             )
             metric[self.eval_config['dataset_split_valid']] = tmp_metric
         return metric, tmp_metric
