@@ -309,7 +309,8 @@ class GridSearcher:
                  lr_warmup_step_ratio: List or int = None,
                  max_grad_norm: List or float = None,
                  validation_metric: str = 'micro/f1',
-                 use_auth_token: bool = False):
+                 use_auth_token: bool = False,
+                 unification_by_shared_label: bool = False):
         """ fine-tuning language model on NER with grid search over different configs
 
         @param checkpoint_dir: directly to save model weight and other information
@@ -345,6 +346,7 @@ class GridSearcher:
         self.epoch_partial = epoch_partial
         self.batch_size_eval = batch_size_eval
         self.n_max_config = n_max_config
+        self.unification_by_shared_label = unification_by_shared_label
 
         # evaluation configs
         self.eval_config = {
@@ -456,7 +458,7 @@ class GridSearcher:
         for n, checkpoint_dir in enumerate(checkpoints):
             logging.info(f'## 1st RUN (EVAL): Configuration {n}/{len(checkpoints)} ##')
             checkpoint_dir_model = pj(checkpoint_dir, f'epoch_{self.epoch_partial}')
-            metric, tmp_metric = self.validate_model(checkpoint_dir_model, cache_prefix)
+            metric, tmp_metric = self.validate_model(checkpoint_dir_model, cache_prefix, self.unification_by_shared_label)
             json_save(metric, pj(checkpoint_dir_model, "eval", "metric.json"))
             metrics[checkpoint_dir_model] = tmp_metric[self.eval_config['metric']]
         metrics = sorted(metrics.items(), key=lambda x: x[1], reverse=True)
@@ -486,7 +488,7 @@ class GridSearcher:
         for n, checkpoint_dir in enumerate(checkpoints):
             logging.info(f'## 2nd RUN (EVAL): Configuration {n}/{len(checkpoints)} ##')
             for checkpoint_dir_model in sorted(glob(pj(checkpoint_dir, 'epoch_*'))):
-                metric, tmp_metric = self.validate_model(checkpoint_dir_model, cache_prefix)
+                metric, tmp_metric = self.validate_model(checkpoint_dir_model, cache_prefix, self.unification_by_shared_label)
                 json_save(metric, pj(checkpoint_dir_model, 'eval', 'metric.json'))
                 metrics[checkpoint_dir_model] = tmp_metric[self.eval_config['metric']]
         metrics = sorted(metrics.items(), key=lambda x: x[1], reverse=True)
@@ -522,7 +524,7 @@ class GridSearcher:
                     trainer.train(epoch_save=1, optimizer_on_cpu=optimizer_on_cpu)
                 logging.info(f'## 3rd RUN (EVAL): epoch {epoch} ##')
 
-                metric, tmp_metric = self.validate_model(checkpoint_dir_model, cache_prefix)
+                metric, tmp_metric = self.validate_model(checkpoint_dir_model, cache_prefix, self.unification_by_shared_label)
                 tmp_metric_score = tmp_metric[self.eval_config['metric']]
                 metrics.append([epoch, tmp_metric_score])
                 logging.info(f'\t tmp metric: {tmp_metric_score}')
@@ -544,7 +546,7 @@ class GridSearcher:
         with open(pj(self.checkpoint_dir, 'best_model', 'trainer_config.json'), 'w') as f:
             json.dump(config, f)
 
-    def validate_model(self, checkpoint_dir_model, cache_prefix):
+    def validate_model(self, checkpoint_dir_model, cache_prefix, unification_by_shared_label=False):
         """ validate model checkpoint """
         metric = {}
         if os.path.exists(pj(checkpoint_dir_model, 'eval', 'metric.json')):
@@ -567,7 +569,7 @@ class GridSearcher:
                 dataset_split=self.eval_config['dataset_split_valid'],
                 cache_file_feature=cache_file_feature,
                 cache_file_prediction=cache_file_prediction,
-                unification_by_shared_label=False
+                unification_by_shared_label=unification_by_shared_label
             )
             metric[self.eval_config['dataset_split_valid']] = tmp_metric
         return metric, tmp_metric
