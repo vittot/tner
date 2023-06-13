@@ -311,7 +311,8 @@ class GridSearcher:
                  lr_warmup_step_ratio: List or int = None,
                  max_grad_norm: List or float = None,
                  validation_metric: str = 'micro/f1',
-                 use_auth_token: bool = False):
+                 use_auth_token: bool = False,
+                 freeze_bert: bool = False):
         """ fine-tuning language model on NER with grid search over different configs
 
         @param checkpoint_dir: directly to save model weight and other information
@@ -347,6 +348,7 @@ class GridSearcher:
         self.epoch_partial = epoch_partial
         self.batch_size_eval = batch_size_eval
         self.n_max_config = n_max_config
+        self.freeze_bert = freeze_bert
 
         # evaluation configs
         self.eval_config = {
@@ -449,7 +451,7 @@ class GridSearcher:
                 raise ValueError(f'duplicated checkpoints are found: \n {duplicated_ckpt}')
 
             if not os.path.exists(pj(checkpoint_dir, f'epoch_{self.epoch_partial}')):
-                trainer = Trainer(checkpoint_dir=checkpoint_dir, disable_log=True, **config)
+                trainer = Trainer(checkpoint_dir=checkpoint_dir, disable_log=True, freeze_bert=self.freeze_bert, **config)
                 trainer.train(epoch_partial=self.epoch_partial, epoch_save=1, optimizer_on_cpu=optimizer_on_cpu)
             checkpoints.append(checkpoint_dir)
 
@@ -481,7 +483,7 @@ class GridSearcher:
             logging.info(f'## 2nd RUN: Configuration {n}/{len(metrics)}: {_metric}')
             model_ckpt = os.path.dirname(checkpoint_dir_model)
             if not os.path.exists(pj(model_ckpt, f"epoch_{self.static_config['epoch']}")):
-                trainer = Trainer(checkpoint_dir=model_ckpt, disable_log=True)
+                trainer = Trainer(checkpoint_dir=model_ckpt, disable_log=True, freeze_bert=self.freeze_bert)
                 trainer.train(epoch_save=1, optimizer_on_cpu=optimizer_on_cpu)
             checkpoints.append(model_ckpt)
         metrics = {}
@@ -520,7 +522,8 @@ class GridSearcher:
                     trainer = Trainer(
                         checkpoint_dir=best_model_dir,
                         config_file='trainer_config.additional_training.json',
-                        disable_log=True)
+                        disable_log=True,
+                        freeze_bert=self.freeze_bert)
                     trainer.train(epoch_save=1, optimizer_on_cpu=optimizer_on_cpu)
                 logging.info(f'## 3rd RUN (EVAL): epoch {epoch} ##')
 
