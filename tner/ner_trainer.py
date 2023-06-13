@@ -43,6 +43,7 @@ class Trainer:
                  max_grad_norm: float = None,
                  disable_log: bool = False,
                  use_auth_token: bool = False,
+                 freeze_bert: bool = False,
                  config_file: str = 'trainer_config.json'):
         """ fine-tuning language model on NER
 
@@ -98,7 +99,8 @@ class Trainer:
                     model_path,
                     max_length=config['max_length'],
                     crf=config['crf'],
-                    use_auth_token=use_auth_token
+                    use_auth_token=use_auth_token,
+                    freeze_bert =freeze_bert
                 )
                 self.current_epoch = e
                 assert self.current_epoch <= config['epoch'],\
