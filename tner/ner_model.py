@@ -39,7 +39,8 @@ class TransformersNER:
                  crf: bool = False,
                  use_auth_token: bool = False,
                  label2id: Dict = None,
-                 non_entity_symbol: str = 'O'):
+                 non_entity_symbol: str = 'O',
+                 freeze_bert = False):
         """ TransformersNER
 
         @param model: the huggingface model (`tner/roberta-large-tweetner-2021`) or path to local checkpoint
@@ -61,6 +62,12 @@ class TransformersNER:
         except Exception:
             self.model = load_hf(self.model_name, label2id, use_auth_token, True)
         self.is_xlnet = self.model.config.model_type == 'xlnet'
+        
+        # freeze BERT layers
+        if freeze_bert:
+            for name, param in self.model.named_parameters():
+                 param.requires_grad = False
+        
         # load crf layer
         if 'crf_state_dict' in self.model.config.to_dict().keys() or crf:
             logging.info('use CRF')
